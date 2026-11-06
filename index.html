@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MinhaAgenda - Painel Clínico Completo</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .sidebar {
+            min-height: 100vh;
+            background-color: #1a2537;
+            color: #fff;
+        }
+        .sidebar .nav-link {
+            color: #a0aec0;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #2d3748;
+        }
+        .main-content {
+            padding: 30px;
+        }
+        .card-stat {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .table-container {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .badge-status {
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+        .action-popup-btn {
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .tab-section {
+            display: none;
+        }
+        .tab-section.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar Navigation -->
+            <div class="col-md-3 col-lg-2 sidebar p-3 d-flex flex-column justify-content-between">
+                <div>
+                    <h3 class="fw-bold mb-4 text-primary"><i class="fas fa-calendar-check me-2"></i>Minha<span class="text-info">Agenda</span></h3>
+                    <ul class="nav nav-pills flex-column mb-auto">
+                        <li class="nav-item">
+                            <a id="nav-agendamentos" class="nav-link active" onclick="mostrarAba('agendamentos')">
+                                <i class="fas fa-calendar-alt me-2"></i>Agendamentos
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a id="nav-pacientes" class="nav-link" onclick="mostrarAba('pacientes')">
+                                <i class="fas fa-users me-2"></i>Pacientes
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a id="nav-medicos" class="nav-link" onclick="mostrarAba('medicos')">
+                                <i class="fas fa-user-md me-2"></i>Médicos
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="mb-3 text-center">
+                        <span id="status-conexao" class="badge bg-danger p-2 w-100"><i class="fas fa-times-circle me-1"></i>Desconectado</span>
+                    </div>
+                    <button class="btn btn-outline-light w-100" data-bs-toggle="modal" data-bs-target="#modalAuth">
+                        <i class="fas fa-key me-2"></i>Autenticar API
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="col-md-9 col-lg-10 main-content">
+                
+                <!-- ABA 1: AGENDAMENTOS -->
+                <div id="aba-agendamentos" class="tab-section active">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h2 class="fw-bold mb-1">Agenda de Consultas</h2>
+                            <p class="text-muted mb-0">Visualize, confirme e envie lembretes via WhatsApp e E-mail.</p>
+                        </div>
+                        <div>
+                            <button class="btn btn-outline-secondary me-2" onclick="carregarAgendamentos()"><i class="fas fa-sync-alt me-1"></i>Atualizar</button>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoAgendamento" onclick="prepararModalNovoAgendamento()"><i class="fas fa-plus me-1"></i>Novo Agendamento</button>
+                        </div>
+                    </div>
+
+                    <!-- Cards Resumo -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card card-stat p-3">
+                                <span class="text-muted text-uppercase fw-semibold fs-7">Total de Consultas</span>
+                                <h3 class="fw-bold my-1" id="stat-total">0</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card card-stat p-3">
+                                <span class="text-muted text-uppercase fw-semibold fs-7">Confirmados</span>
+                                <h3 class="fw-bold my-1 text-success" id="stat-confirmados">0</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card card-stat p-3">
+                                <span class="text-muted text-uppercase fw-semibold fs-7">Pendentes</span>
+                                <h3 class="fw-bold my-1 text-warning" id="stat-pendentes">0</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabela de Agendamentos -->
+                    <div class="table-container">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>PACIENTE</th>
+                                        <th>CPF</th>
+                                        <th>MÉDICO</th>
+                                        <th>DATA & HORA</th>
+                                        <th>STATUS</th>
+                                        <th>MOTIVO DA AUSÊNCIA / CANCELAMENTO</th>
+                                        <th>NOTIFICAR</th>
+                                        <th>AÇÕES</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabela-agendamentos">
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted py-4">Carregando agendamentos...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ABA 2: PACIENTES -->
+                <div id="aba-pacientes" class="tab-section">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h2 class="fw-bold mb-1">Gestão de Pacientes</h2>
+                            <p class="text-muted mb-0">Cadastro e acompanhamento dos pacientes da clínica.</p>
+                        </div>
+                        <div>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoPaciente"><i class="fas fa-user-plus me-1"></i>Novo Paciente</button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>NOME COMPLETO</th>
+                                        <th>CPF</th>
+                                        <th>TELEFONE</th>
+                                        <th>E-MAIL</th>
+                                        <th>HISTÓRICO</th>
+                                        <th>AÇÕES</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabela-pacientes">
+                                    <!-- Renderizado dinamicamente via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ABA 3: MÉDICOS -->
+                <div id="aba-medicos" class="tab-section">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h2 class="fw-bold mb-1">Corpo Clínico (Médicos & Dentistas)</h2>
+                            <p class="text-muted mb-0">Profissionais cadastrados e especialidades atendidas.</p>
+                        </div>
+                        <div>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoMedico"><i class="fas fa-user-md me-1"></i>Novo Médico</button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>NOME DO PROFISSIONAL</th>
+                                        <th>CRM / CRO</th>
+                                        <th>ESPECIALIDADE</th>
+                                        <th>TELEFONE</th>
+                                        <th>STATUS</th>
+                                        <th>AÇÕES</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabela-medicos">
+                                    <!-- Renderizado dinamicamente via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 1: Autenticar API -->
+    <div class="modal fade" id="modalAuth" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-lock me-2"></i>Autenticar na API FastAPI</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-auth" onsubmit="autenticarAPI(event)">
+                        <div class="mb-3">
+                            <label class="form-label">URL da API (Backend)</label>
+                            <input type="url" id="auth-url" class="form-control" value="https://minha-agenda-flax-tau.vercel.app" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">E-mail de Cadastro</label>
+                            <input type="email" id="auth-email" class="form-control" value="admin@gmail.com" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Senha</label>
+                            <input type="password" id="auth-senha" class="form-control" value="1234" required>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Entrar / Obter Token</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Novo Agendamento -->
+    <div class="modal fade" id="modalNovoAgendamento" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-calendar-plus me-2 text-primary"></i>Novo Agendamento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-novo-agendamento" onsubmit="salvarNovoAgendamento(event)">
+                        <div class="mb-3">
+                            <label class="form-label">Selecione o Paciente</label>
+                            <select id="novo-agendamento-paciente" class="form-select" onchange="atualizarCpfNovoAgendamento()" required>
+                                <option value="">-- Escolha um paciente --</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">CPF do Paciente</label>
+                            <input type="text" id="novo-agendamento-cpf" class="form-control" placeholder="000.000.000-00" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Selecione o Médico / Profissional</label>
+                            <select id="novo-agendamento-medico" class="form-select" required>
+                                <option value="">-- Escolha um médico --</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Data e Hora da Consulta</label>
+                            <input type="datetime-local" id="novo-agendamento-datahora" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Status Inicial</label>
+                            <select id="novo-agendamento-status" class="form-select">
+                                <option value="pendente" selected>Pendente</option>
+                                <option value="agendada">Confirmado / Agendado</option>
+                            </select>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Cadastrar Agendamento</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: Novo Paciente -->
+    <div class="modal fade" id="modalNovoPaciente" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-user-plus me-2 text-primary"></i>Novo Paciente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-novo-paciente" onsubmit="salvarNovoPaciente(event)">
+                        <div class="mb-3">
+                            <label class="form-label">Nome Completo</label>
+                            <input type="text" id="novo-paciente-nome" class="form-control" placeholder="Ex: Carlos Eduardo Silva" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">CPF</label>
+                            <input type="text" id="novo-paciente-cpf" class="form-control" placeholder="000.000.000-00" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Telefone / WhatsApp</label>
+                            <input type="text" id="novo-paciente-telefone" class="form-control" placeholder="(11) 98888-7777" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">E-mail</label>
+                            <input type="email" id="novo-paciente-email" class="form-control" placeholder="exemplo@email.com" required>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Salvar Paciente</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: Editar Paciente -->
+    <div class="modal fade" id="modalEditarPaciente" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-user-edit me-2 text-primary"></i>Editar Cadastro de Paciente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-editar-paciente" onsubmit="salvarEdicaoPaciente(event)">
+                        <input type="hidden" id="edit-paciente-id">
+                        <div class="mb-3">
+                            <label class="form-label">Nome Completo</label>
+                            <input type="text" id="edit-paciente-nome" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">CPF</label>
+                            <input type="text" id="edit-paciente-cpf" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Telefone / WhatsApp</label>
+                            <input type="text" id="edit-paciente-telefone" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">E-mail</label>
+                            <input type="email" id="edit-paciente-email" class="form-control" required>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Atualizar Paciente</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: Novo Médico -->
+    <div class="modal fade" id="modalNovoMedico" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-user-md me-2 text-primary"></i>Novo Médico / Dentista</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-novo-medico" onsubmit="salvarNovoMedico(event)">
+                        <div class="mb-3">
+                            <label class="form-label">Nome do Profissional</label>
+                            <input type="text" id="novo-medico-nome" class="form-control" placeholder="Ex: Dr. Fernando Costa" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Registro (CRM / CRO)</label>
+                            <input type="text" id="novo-medico-crm" class="form-control" placeholder="CRM/SP 123456" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Especialidade</label>
+                            <input type="text" id="novo-medico-especialidade" class="form-control" placeholder="Ex: Ortodontia" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Telefone de Contato</label>
+                            <input type="text" id="novo-medico-telefone" class="form-control" placeholder="(11) 97777-6666" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select id="novo-medico-status" class="form-select">
+                                <option value="Ativo" selected>Ativo</option>
+                                <option value="Em Férias">Em Férias</option>
+                                <option value="Inativo">Inativo</option>
+                            </select>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Salvar Médico</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 6: Editar Médico -->
+    <div class="modal fade" id="modalEditarMedico" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-user-edit me-2 text-primary"></i>Editar Cadastro de Médico</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-editar-medico" onsubmit="salvarEdicaoMedico(event)">
+                        <input type="hidden" id="edit-medico-id">
+                        <div class="mb-3">
+                            <label class="form-label">Nome do Profissional</label>
+                            <input type="text" id="edit-medico-nome" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Registro (CRM / CRO)</label>
+                            <input type="text" id="edit-medico-crm" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Especialidade</label>
+                            <input type="text" id="edit-medico-especialidade" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Telefone de Contato</label>
+                            <input type="text" id="edit-medico-telefone" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select id="edit-medico-status" class="form-select">
+                                <option value="Ativo">Ativo</option>
+                                <option value="Em Férias">Em Férias</option>
+                                <option value="Inativo">Inativo</option>
+                            </select>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Atualizar Médico</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- POP-UP MODAL DE AÇÕES PARA O AGENDAMENTO -->
+    <div class="modal fade" id="modalPopUpAcoes" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark" id="modalAcoesTitulo">
+                        <i class="fas fa-sliders-h me-2 text-primary"></i>Gerenciar Agendamento
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-muted mb-3" id="modalAcoesSubtitulo">Selecione uma das opções abaixo para alterar o status da consulta:</p>
+                    
+                    <input type="hidden" id="popup-agendamento-id">
+
+                    <div class="d-grid gap-2">
+                        <!-- Confirmar -->
+                        <button class="btn btn-outline-success action-popup-btn text-start p-3" onclick="executarAcaoPopUp('agendada')">
+                            <i class="fas fa-check-circle fa-lg me-2"></i><strong>Confirmar / Agendar</strong>
+                            <div class="small text-muted ms-4">Marca a consulta como confirmada</div>
+                        </button>
+
+                        <!-- Concluir -->
+                        <button class="btn btn-outline-info action-popup-btn text-start p-3" onclick="executarAcaoPopUp('concluida')">
+                            <i class="fas fa-user-check fa-lg me-2"></i><strong>Concluir Consulta</strong>
+                            <div class="small text-muted ms-4">Finaliza a consulta realizada</div>
+                        </button>
+
+                        <!-- Paciente Ausente -->
+                        <button class="btn btn-outline-warning action-popup-btn text-start p-3" onclick="mostrarFormMotivo('paciente ausente')">
+                            <i class="fas fa-user-slash fa-lg me-2"></i><strong>Paciente Ausente</strong>
+                            <div class="small text-muted ms-4">Registra o não comparecimento do paciente</div>
+                        </button>
+
+                        <!-- Cancelar -->
+                        <button class="btn btn-outline-danger action-popup-btn text-start p-3" onclick="mostrarFormMotivo('cancelada')">
+                            <i class="fas fa-times-circle fa-lg me-2"></i><strong>Cancelar Consulta</strong>
+                            <div class="small text-muted ms-4">Cancela o agendamento</div>
+                        </button>
+                    </div>
+
+                    <!-- Formulário dinâmico para motivo da ausência/cancelamento -->
+                    <div id="form-motivo-container" class="mt-4 pt-3 border-top" style="display: none;">
+                        <label class="form-label fw-bold text-dark" id="label-motivo-titulo">Motivo da Ausência / Cancelamento</label>
+                        <textarea id="popup-motivo-texto" class="form-control mb-3" rows="3" placeholder="Digite aqui o motivo..."></textarea>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-light" onclick="ocultarFormMotivo()">Voltar</button>
+                            <button type="button" class="btn btn-primary" onclick="confirmarComMotivo()">Confirmar Status</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="app.js"></script>
+</body>
+</html>
