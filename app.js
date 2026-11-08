@@ -1,7 +1,4 @@
-// URL fixa da API (não é mais configurável pelo usuário)
-// TEMPORÁRIO: usando o servidor local. Para voltar à produção, troque pela linha comentada.
-// const API_BASE_URL = "https://minha-agenda-flax-tau.vercel.app";
-const API_BASE_URL = "http://localhost:8000";
+// A URL da API (API_BASE_URL) fica em config.js, carregado antes deste arquivo.
 
 let statusSelecionadoTemp = "";
 
